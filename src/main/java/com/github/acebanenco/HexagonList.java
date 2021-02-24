@@ -20,7 +20,7 @@ public class HexagonList {
     private final AtomicBoolean coloring = new AtomicBoolean();
     private final Color COLOR_ALIVE = Color.BLUE.brighter();
     private final Color COLOR_DEAD = Color.WHITE;
-    private final HexagonFactory hexagonFactory = new HexagonFactory();
+    private final ShapeFactory shapeFactory;
     private final double hexagonSize = 20.0;
     private final AtomicLong lastTimeMouseClicked = new AtomicLong();
 
@@ -51,6 +51,7 @@ public class HexagonList {
                         });
             }
         });
+        shapeFactory = new ShapeFactory(WIDTH, HEIGHT, new HexagonShapePoints());
     }
 
     void reset() {
@@ -68,7 +69,7 @@ public class HexagonList {
         double x = x0 + 3 * xn * r + (yn % 2) * 3 * r / 2;
         double y = y0 + yn * dy;
 
-        Polygon hexagon = hexagonFactory.getHexagon(x, y, hexagonSize, hexagonSize);
+        Polygon hexagon = shapeFactory.createScaledShapeAt(x, y);
         hexagon.setFill(COLOR_DEAD);
         //hexagon.setStroke(Color.BLACK);
 
