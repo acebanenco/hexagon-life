@@ -1,73 +1,77 @@
 package com.github.acebanenco.hexlife;
 
+import com.github.acebanenco.hexlife.control.GridCell;
 import com.github.acebanenco.hexlife.layout.ShapeGridLayout;
 
-import java.util.BitSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.stream.IntStream;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 public class HexagonLifeModel {
-    private final BitSet currentFill;
     private final LifeGenerationLogic generationLogic;
     private final ShapeGridLayout gridLayout;
+    private Map<ShapeGridLayout.GridLocation, GridCell> cells;
 
-    public HexagonLifeModel(LifeGenerationLogic generationLogic,
-                            int WIDTH, int HEIGHT,
-                            ShapeGridLayout gridLayout) {
+    public HexagonLifeModel(LifeGenerationLogic generationLogic, ShapeGridLayout gridLayout) {
         this.generationLogic = generationLogic;
         this.gridLayout = gridLayout;
-        currentFill = new BitSet(HEIGHT * WIDTH);
     }
 
-    BitSet getNextFill() {
-        BitSet nextFill = BitSet.valueOf(currentFill.toLongArray());
-        gridLayout.locationsStream()
-                .forEach(location -> {
-                    int aliveNeighbours = getAliveNeighbourCount(location);
-                    int currentIndex = gridLayout.indexOf(location);
-                    boolean alive = currentFill.get(currentIndex);
-                    if (alive && !generationLogic.shouldSurvive(aliveNeighbours)) {
-                        nextFill.set(currentIndex, false);
-                    }
-                    if (!alive && generationLogic.shouldBeBorn(aliveNeighbours)) {
-                        nextFill.set(currentIndex, true);
-                    }
-                });
-        if (nextFill.equals(currentFill)) {
-            return null;
+    public void setCells(List<GridCell> cells) {
+        this.cells = cells.stream()
+                .collect(Collectors.toMap(
+                        GridCell::getGridLocation,
+                        UnaryOperator.identity()));
+    }
+
+    void advanceModel() {
+        Set<GridCell> deadCells = cells.values()
+                .stream()
+                .filter(this::cellShouldDie)
+                .collect(Collectors.toSet());
+
+        Set<GridCell> bornCells = cells.values()
+                .stream()
+                .filter(this::cellShouldBeBorn)
+                .collect(Collectors.toSet());
+
+        deadCells.forEach(cell -> cell.setAlive(false));
+        bornCells.forEach(cell -> cell.setAlive(true));
+    }
+
+    private boolean cellShouldBeBorn(GridCell gridCell) {
+        if (gridCell.isAlive()) {
+            return false;
         }
-        return nextFill;
+        ShapeGridLayout.GridLocation gridLocation = gridCell.getGridLocation();
+        int aliveNeighbourCount = getAliveNeighbourCount(gridLocation);
+        return generationLogic.shouldBeBorn(aliveNeighbourCount);
     }
 
-    void copyBitsFrom(BitSet nextFill) {
-        IntStream.range(0, nextFill.size())
-                .forEach(bitIndex ->
-                        currentFill.set(bitIndex, nextFill.get(bitIndex)));
+    private boolean cellShouldDie(GridCell gridCell) {
+        if (!gridCell.isAlive()) {
+            return false;
+        }
+        ShapeGridLayout.GridLocation gridLocation = gridCell.getGridLocation();
+        int aliveNeighbourCount = getAliveNeighbourCount(gridLocation);
+        return !generationLogic.shouldSurvive(aliveNeighbourCount);
     }
 
     int getAliveNeighbourCount(ShapeGridLayout.GridLocation location) {
         Set<ShapeGridLayout.GridLocation> neighbours = gridLayout.getNeighbours(location, 1);
         return (int) neighbours.stream()
-                .map(gridLayout::indexOf)
-                .filter(currentFill::get)
+                .map(cells::get)
+                .filter(Objects::nonNull)
+                .filter(GridCell::isAlive)
                 .count();
     }
 
     void clear() {
-        currentFill.clear();
-    }
-
-    void set(int index) {
-        currentFill.set(index, true);
-    }
-
-    boolean flip(int index) {
-        currentFill.flip(index);
-        return currentFill.get(index);
-    }
-
-    boolean get(int index) {
-        return currentFill.get(index);
+        cells.values()
+                .forEach(cell -> cell.setAlive(false));
     }
 
 }

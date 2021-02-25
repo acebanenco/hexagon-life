@@ -1,7 +1,8 @@
 package com.github.acebanenco.hexlife.shape;
 
+import javafx.geometry.Point2D;
 import javafx.scene.shape.Shape;
 
 public interface TransformedShapeFactory {
-    Shape createShapeAt(double x, double y);
+    Shape createShapeAt(Point2D point);
 }

@@ -1,118 +1,81 @@
 package com.github.acebanenco.hexlife;
 
-import com.github.acebanenco.hexlife.layout.HexagonGridLayout;
+import com.github.acebanenco.hexlife.animation.AnimationConsumer;
+import com.github.acebanenco.hexlife.control.GridCell;
+import com.github.acebanenco.hexlife.control.ShapeGridContainer;
 import com.github.acebanenco.hexlife.layout.ShapeGridLayout;
-import com.github.acebanenco.hexlife.shape.HexagonShapeFactory;
 import com.github.acebanenco.hexlife.shape.TransformedShapeFactory;
-import javafx.animation.FillTransition;
 import javafx.geometry.Point2D;
 import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Shape;
-import javafx.util.Duration;
 
-import java.util.BitSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class HexagonList {
-    private final HexagonLifeModel lifeModel;
     private final Pane hexagonPane;
-    private final List<Shape> hexagons;
+    private final List<GridCell> gridCells;
     private final AtomicBoolean coloring = new AtomicBoolean();
-    private final Color COLOR_ALIVE = Color.BLUE.brighter();
-    private final Color COLOR_DEAD = Color.WHITE;
     private final TransformedShapeFactory transformedShapeFactory;
-    private final ShapeGridLayout gridLayout;
-    private final AtomicLong lastTimeMouseClicked = new AtomicLong();
+    private final AnimationConsumer animationConsumer;
 
-    public HexagonList(HexagonLifeModel lifeModel, int WIDTH, int HEIGHT) {
-        this.lifeModel = lifeModel;
+    public HexagonList(HexagonLifeModel lifeModel,
+                       TransformedShapeFactory transformedShapeFactory,
+                       ShapeGridLayout gridLayout,
+                       AnimationConsumer animationConsumer) {
+        this.transformedShapeFactory = transformedShapeFactory;
 
-        HexagonShapeFactory shapeFactory = new HexagonShapeFactory();
-        transformedShapeFactory = new ProportionallyScaledShapeFactory(WIDTH, shapeFactory);
-        gridLayout = new HexagonGridLayout(20, WIDTH, HEIGHT);
-
-
-        hexagons = gridLayout.locationsStream()
-                .map(this::getHexagon)
+        gridCells = gridLayout.locationsStream()
+                .map(this::getGridCells)
                 .collect(Collectors.toList());
-        hexagonPane = new Pane();
-        hexagonPane.getChildren().addAll(hexagons);
+        lifeModel.setCells(gridCells);
+
+        this.animationConsumer = animationConsumer;
+
+        hexagonPane = new ShapeGridContainer(gridLayout);
+        hexagonPane.getChildren()
+                .addAll(gridCells);
 
         hexagonPane.setOnMouseDragged(event -> {
-            lastTimeMouseClicked.set(System.currentTimeMillis());
+            animationConsumer.freezeModelUpdates();
             if (coloring.get()) {
                 double x1 = event.getX();
                 double y1 = event.getY();
                 Point2D point2D = hexagonPane.sceneToLocal(x1, y1);
-                IntStream.range(0, hexagons.size())
-                        .filter(index -> hexagons.get(index).contains(point2D))
-                        .forEach(index -> {
-                            lifeModel.set(index);
-                            hexagons.get(index).setFill(COLOR_ALIVE);
-                        });
+                getCellAt(point2D)
+                        .ifPresent(cell -> cell.setAlive(true));
+                animationConsumer.commitAnimationsAsync();
             }
         });
     }
 
-    void reset() {
-        hexagons.forEach(h -> h.setFill(COLOR_DEAD));
+    private Optional<GridCell> getCellAt(Point2D point2D) {
+        return gridCells.stream()
+                // TODO optimize
+                // split grid into the 10x20 boxes with
+                // calculated bounds and know list of cells.
+                // Then you can quickly find a box and after
+                // number of cells to iterate will be 10-20 times less
+                .filter(cell -> cell.contains(point2D))
+                .findAny();
     }
 
+    private GridCell getGridCells(ShapeGridLayout.GridLocation location) {
+        Shape shape = transformedShapeFactory.createShapeAt(new Point2D(0., 0.));
+        GridCell gridCell = new GridCell(location, shape);
 
-    private Shape getHexagon(ShapeGridLayout.GridLocation location) {
-        Point2D point2D = gridLayout.getLocation(location);
-
-        Shape hexagon = transformedShapeFactory.createShapeAt(point2D.getX(), point2D.getY());
-        hexagon.setFill(COLOR_DEAD);
-        //hexagon.setStroke(Color.BLACK);
-
-        int index = gridLayout.indexOf(location);
-        hexagon.onMouseClickedProperty().set(event -> {
-            lastTimeMouseClicked.set(System.currentTimeMillis());
-            hexagon.setFill(lifeModel.flip(index) ? COLOR_ALIVE : COLOR_DEAD);
+        gridCell.setAnimationConsumer(animationConsumer);
+        gridCell.setOnMouseClicked(event -> {
+            // do not belong here
+            animationConsumer.freezeModelUpdates();
+            // move to constructor
+            GridCell source = (GridCell) event.getSource();
+            source.setAlive(!source.isAlive());
+            animationConsumer.commitAnimationsAsync();
         });
-
-        hexagon.onMousePressedProperty().set(event -> {
-            lastTimeMouseClicked.set(System.currentTimeMillis());
-            coloring.set(true);
-        });
-        hexagon.onMouseReleasedProperty().set(event -> {
-            lastTimeMouseClicked.set(System.currentTimeMillis());
-            coloring.set(false);
-        });
-
-        return hexagon;
-    }
-
-    AtomicLong getLastTimeMouseClicked() {
-        return lastTimeMouseClicked;
-    }
-
-    Shape get(int bitIndex) {
-        return hexagons.get(bitIndex);
-    }
-
-    public int size() {
-        return hexagons.size();
-    }
-
-    FillTransition getFillTransition(BitSet nextFill, int bitIndex, Shape hexagon, double nextGenerationInterval) {
-        FillTransition ft;
-        if (nextFill.get(bitIndex)) {
-            ft = new FillTransition(Duration.millis(nextGenerationInterval), hexagon);
-            // turn on
-            ft.setToValue(COLOR_ALIVE/*.interpolate(COLOR_DEAD, neighbourCount/(double)6)*/);
-        } else {
-            ft = new FillTransition(Duration.millis(nextGenerationInterval), hexagon);
-            // turn off
-            ft.setToValue(COLOR_DEAD);
-        }
-        return ft;
+        return gridCell;
     }
 
     Pane getHexagonPane() {

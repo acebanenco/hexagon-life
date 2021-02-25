@@ -1,5 +1,6 @@
 package com.github.acebanenco.hexlife.layout;
 
+import javafx.geometry.Bounds;
 import javafx.geometry.Point2D;
 
 import java.util.*;
@@ -11,55 +12,67 @@ public class HexagonGridLayout implements ShapeGridLayout {
 
     private static final double SQRT_OF_THREE = Math.sqrt(3.0);
     private final double shapeSize;
-    private final int width;
-    private final int height;
+    private final Bounds parentBounds;
+    private final CrossBorderStrategy crossBorderStrategy;
+    private final Set<GridLocation> evenTranslations;
+    private final Set<GridLocation> oddTranslations;
 
-    public HexagonGridLayout(double shapeSize, int width, int height) {
+    public HexagonGridLayout(double shapeSize, Bounds parentBounds, CrossBorderStrategy crossBorderStrategy) {
         this.shapeSize = shapeSize;
-        this.width = width;
-        this.height = height;
+        this.parentBounds = parentBounds;
+        this.crossBorderStrategy = crossBorderStrategy;
+
+        evenTranslations = getEvenTranslations();
+        oddTranslations = getOddTranslations();
     }
 
     @Override
-    public Point2D getLocation(GridLocation locationOnGrid) {
-        Point2D point2D = getUnscaledLocation(locationOnGrid);
-        return point2D.multiply(shapeSize / 2);
+    public int getRowCount() {
+        return (int) (parentBounds.getHeight() / (shapeSize/SQRT_OF_THREE));
     }
 
-    private Point2D getUnscaledLocation(GridLocation locationOnGrid) {
-        double x = getX(locationOnGrid);
-        double y = getY(locationOnGrid);
+    @Override
+    public int getColumnCount() {
+        return (int) (parentBounds.getWidth() / (1.5 * shapeSize));
+    }
+
+    @Override
+    public Point2D getPoint(GridLocation location) {
+        double x = getX(location);
+        double y = getY(location);
         return new Point2D(x, y);
     }
 
     private double getX(GridLocation locationOnGrid) {
-        int xn = locationOnGrid.getX();
-        if (isEvenLocation(locationOnGrid)) {
-            return 1.5 * (2 * xn);
+        int column = locationOnGrid.getColumn();
+        if (isEvenRow(locationOnGrid)) {
+            return 1.5 * (2 * column) * shapeSize/2 + parentBounds.getMinX();
         }
-        return 1.5 * (1 + 2 * xn);
+        return 1.5 * (2 * column + 1) * shapeSize/2 + parentBounds.getMinX();
     }
 
     private double getY(GridLocation locationOnGrid) {
-        int yn = locationOnGrid.getY();
-        return yn * (SQRT_OF_THREE / 2);
+        int row = locationOnGrid.getRow();
+        return row *SQRT_OF_THREE/2 * shapeSize/2 + parentBounds.getMinY();
     }
 
     @Override
     public Stream<GridLocation> locationsStream() {
-        return IntStream.range(0, width * height)
-                .mapToObj(this::locaitonByIndex);
-    }
-
-    private GridLocation locaitonByIndex(int index) {
-        int x = index % width;
-        int y = index / width;
-        return new GridLocation(x, y);
+        int columnCount = getColumnCount();
+        int rowCount = getRowCount();
+        return IntStream.range(0, columnCount * rowCount)
+                .mapToObj(index -> {
+                    int column = index % columnCount;
+                    int row = index / columnCount;
+                    return new GridLocation(column, row);
+                });
     }
 
     @Override
     public int indexOf(GridLocation location) {
-        return location.getX() + location.getY() * width;
+        int column = location.getColumn();
+        int row = location.getRow();
+        return column + row * getColumnCount();
     }
 
     @Override
@@ -71,7 +84,8 @@ public class HexagonGridLayout implements ShapeGridLayout {
             return Collections.singleton(locationOnGrid);
         }
         if (level == 1) {
-            return getCloseNeighbours(locationOnGrid);
+            GridSize size = getSize();
+            return getCloseNeighbours(locationOnGrid, size);
         }
 
         Set<GridLocation> visitedNodes = new HashSet<>();
@@ -85,17 +99,24 @@ public class HexagonGridLayout implements ShapeGridLayout {
     }
 
     private Set<GridLocation> getNextLevelNeighbours(Set<GridLocation> currentLevelNeighbours, Set<GridLocation> visitedNodes) {
+        GridSize size = getSize();
         return currentLevelNeighbours.stream()
-                .map(this::getCloseNeighbours)
+                .map(location -> getCloseNeighbours(location, size))
                 .flatMap(Collection::stream)
                 .filter(visitedNodes::add)
                 .collect(Collectors.toSet());
     }
 
-    private Set<GridLocation> getCloseNeighbours(GridLocation location) {
+    private Set<GridLocation> getCloseNeighbours(GridLocation location, GridSize size) {
         return getCloseNeighboursUnsorted(location).stream()
-                .map(this::locationReflected)
+                .map(neighbourLocation -> crossBorderStrategy.crossBorderLocation(neighbourLocation, size))
                 .collect(Collectors.toSet());
+    }
+
+    private GridSize getSize() {
+        int columnCount = getColumnCount();
+        int rowCount = getRowCount();
+        return new GridSize(columnCount, rowCount);
     }
 
     private Set<GridLocation> getCloseNeighboursUnsorted(GridLocation location) {
@@ -104,74 +125,48 @@ public class HexagonGridLayout implements ShapeGridLayout {
     }
 
     private Set<GridLocation> getNeighbourTranslations(GridLocation location) {
-        GridLocation[] translations = isEvenLocation(location) ? getEvenTranslations() : getOddTranslations();
-        return new HashSet<>(Arrays.asList(translations));
+        return isEvenRow(location)
+                ? evenTranslations
+                : oddTranslations;
     }
 
-    private boolean isEvenLocation(GridLocation location) {
-        return location.getY() % 2 == 0;
+    private boolean isEvenRow(GridLocation location) {
+        return location.getRow() % 2 == 0;
     }
 
-    private GridLocation[] getOddTranslations() {
-        return new GridLocation[]{
+    private Set<GridLocation> getOddTranslations() {
+        return new HashSet<>(Arrays.asList(
                 new GridLocation(+0, -1),
                 new GridLocation(+0, +1),
                 new GridLocation(+0, +2),
                 new GridLocation(+1, +1),
                 new GridLocation(+1, -1),
-                new GridLocation(+0, -2)};
+                new GridLocation(+0, -2)));
     }
 
-    private GridLocation[] getEvenTranslations() {
-        return new GridLocation[]{
+    private Set<GridLocation> getEvenTranslations() {
+        return new HashSet<>(Arrays.asList(
                 new GridLocation(-1, -1),
                 new GridLocation(-1, +1),
                 new GridLocation(+0, +2),
                 new GridLocation(+0, +1),
                 new GridLocation(+0, -1),
-                new GridLocation(+0, -2)};
+                new GridLocation(+0, -2)));
     }
 
 
     private Set<GridLocation> locationTranslatedBy(GridLocation location, Set<GridLocation> translations) {
         return translations.stream()
-                .map(tranlsation -> locationTranslatedBy(location, tranlsation))
+                .map(translation -> locationTranslatedBy(location, translation))
                 .collect(Collectors.toSet());
     }
 
     private GridLocation locationTranslatedBy(GridLocation location, GridLocation delta) {
-        int xn = location.getX() + delta.getX();
-        int yn = location.getY() + delta.getY();
-        return new GridLocation(xn, yn);
-    }
-
-    private GridLocation locationTranslated(GridLocation location, int dx, int dy) {
-        int xn = location.getX() + dx;
-        int yn = location.getY() + dy;
-        return new GridLocation(xn, yn);
-    }
-
-    private GridLocation locationReflected(GridLocation location) {
-        int xn = location.getX();
-        int yn = location.getY();
-
-        int x = reflect(xn, width);
-        int y = reflect(yn, height);
-
-        if (x == xn && y == yn) {
-            return location;
-        }
-        return new GridLocation(x, y);
-    }
-
-    private static int reflect(int i, int n) {
-        if (i < 0) {
-            return -i;
-        }
-        if (i < n) {
-            return i;
-        }
-        return reflect(2 * n - i - 1, n);
+        int locationRow = location.getRow();
+        int locationColumn = location.getColumn();
+        int row = locationRow + delta.getRow();
+        int column = locationColumn + delta.getColumn();
+        return row == locationRow && column == locationColumn ? location : new GridLocation(column, row);
     }
 
 }
