@@ -1,39 +1,45 @@
-package com.github.acebanenco;
+package com.github.acebanenco.hexlife;
 
+import com.github.acebanenco.hexlife.layout.HexagonGridLayout;
+import com.github.acebanenco.hexlife.layout.ShapeGridLayout;
+import com.github.acebanenco.hexlife.shape.HexagonShapeFactory;
+import com.github.acebanenco.hexlife.shape.TransformedShapeFactory;
 import javafx.animation.FillTransition;
 import javafx.geometry.Point2D;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Polygon;
+import javafx.scene.shape.Shape;
 import javafx.util.Duration;
 
-import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class HexagonList {
     private final HexagonLifeModel lifeModel;
     private final Pane hexagonPane;
-    private final ArrayList<Polygon> hexagons;
+    private final List<Shape> hexagons;
     private final AtomicBoolean coloring = new AtomicBoolean();
     private final Color COLOR_ALIVE = Color.BLUE.brighter();
     private final Color COLOR_DEAD = Color.WHITE;
-    private final ShapeFactory shapeFactory;
-    private final double hexagonSize = 20.0;
+    private final TransformedShapeFactory transformedShapeFactory;
+    private final ShapeGridLayout gridLayout;
     private final AtomicLong lastTimeMouseClicked = new AtomicLong();
 
     public HexagonList(HexagonLifeModel lifeModel, int WIDTH, int HEIGHT) {
         this.lifeModel = lifeModel;
-        hexagons = new ArrayList<>(HEIGHT * WIDTH);
 
-        for (int yn = 0; yn < HEIGHT; yn++) {
-            for (int xn = 0; xn < WIDTH; xn++) {
-                Polygon hexagon = getHexagon(xn, yn, WIDTH);
-                hexagons.add(hexagon);
-            }
-        }
+        HexagonShapeFactory shapeFactory = new HexagonShapeFactory();
+        transformedShapeFactory = new ProportionallyScaledShapeFactory(WIDTH, shapeFactory);
+        gridLayout = new HexagonGridLayout(20, WIDTH, HEIGHT);
+
+
+        hexagons = gridLayout.locationsStream()
+                .map(this::getHexagon)
+                .collect(Collectors.toList());
         hexagonPane = new Pane();
         hexagonPane.getChildren().addAll(hexagons);
 
@@ -51,7 +57,6 @@ public class HexagonList {
                         });
             }
         });
-        shapeFactory = new ShapeFactory(WIDTH, HEIGHT, new HexagonShapePoints());
     }
 
     void reset() {
@@ -59,21 +64,14 @@ public class HexagonList {
     }
 
 
-    private Polygon getHexagon(int xn, int yn, int WIDTH) {
-        double x0 = -hexagonSize / 4.0;
-        double y0 = 0.0;
+    private Shape getHexagon(ShapeGridLayout.GridLocation location) {
+        Point2D point2D = gridLayout.getLocation(location);
 
-        double r = hexagonSize / 2.0;
-        double dy = hexagonSize * Math.sqrt(3.0) / 4;
-
-        double x = x0 + 3 * xn * r + (yn % 2) * 3 * r / 2;
-        double y = y0 + yn * dy;
-
-        Polygon hexagon = shapeFactory.createScaledShapeAt(x, y);
+        Shape hexagon = transformedShapeFactory.createShapeAt(point2D.getX(), point2D.getY());
         hexagon.setFill(COLOR_DEAD);
         //hexagon.setStroke(Color.BLACK);
 
-        int index = xn + yn * WIDTH;
+        int index = gridLayout.indexOf(location);
         hexagon.onMouseClickedProperty().set(event -> {
             lastTimeMouseClicked.set(System.currentTimeMillis());
             hexagon.setFill(lifeModel.flip(index) ? COLOR_ALIVE : COLOR_DEAD);
@@ -82,12 +80,10 @@ public class HexagonList {
         hexagon.onMousePressedProperty().set(event -> {
             lastTimeMouseClicked.set(System.currentTimeMillis());
             coloring.set(true);
-            System.out.println("Coloring");
         });
         hexagon.onMouseReleasedProperty().set(event -> {
             lastTimeMouseClicked.set(System.currentTimeMillis());
             coloring.set(false);
-            System.out.println("Stopped coloring");
         });
 
         return hexagon;
@@ -97,7 +93,7 @@ public class HexagonList {
         return lastTimeMouseClicked;
     }
 
-    Polygon get(int bitIndex) {
+    Shape get(int bitIndex) {
         return hexagons.get(bitIndex);
     }
 
@@ -105,7 +101,7 @@ public class HexagonList {
         return hexagons.size();
     }
 
-    FillTransition getFillTransition(BitSet nextFill, int bitIndex, Polygon hexagon, double nextGenerationInterval) {
+    FillTransition getFillTransition(BitSet nextFill, int bitIndex, Shape hexagon, double nextGenerationInterval) {
         FillTransition ft;
         if (nextFill.get(bitIndex)) {
             ft = new FillTransition(Duration.millis(nextGenerationInterval), hexagon);

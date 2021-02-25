@@ -1,10 +1,6 @@
-package com.github.acebanenco;
-
-import java.util.Random;
+package com.github.acebanenco.hexlife;
 
 public class LifeGenerationLogic {
-
-    private static final Random RANDOM = new Random();
 
     private final double[] beBornWeights = {
             0.000, //0
@@ -37,11 +33,11 @@ public class LifeGenerationLogic {
 
     boolean shouldBeBorn(int aliveNeighbours) {
         double probability = 1;//RANDOM.nextDouble();
-        return beBornWeights[aliveNeighbours] > probability*0.5;
+        return beBornWeights[aliveNeighbours] > probability * 0.5;
     }
 
     boolean shouldSurvive(int aliveNeighbours) {
         double probability = 1;//RANDOM.nextDouble();
-        return surviveWeights[aliveNeighbours] > probability*0.5;
+        return surviveWeights[aliveNeighbours] > probability * 0.5;
     }
 }
