@@ -1,0 +1,14 @@
+
+.grid-cell {
+    -fx-skin: "com.github.acebanenco.hexlife.control.GridCellSkin";
+}
+
+.grid-cell .shape {
+    -fx-fill : rgb(255, 250, 240);
+    -fx-stroke: rgb(204, 204, 204);
+    -fx-stoke-width: 0.5;
+}
+
+.grid-cell .shape:alive {
+    -fx-fill: rgb(135, 206, 250);
+}

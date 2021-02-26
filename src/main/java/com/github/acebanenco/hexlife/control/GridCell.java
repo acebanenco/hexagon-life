@@ -1,46 +1,37 @@
 package com.github.acebanenco.hexlife.control;
 
-import com.github.acebanenco.hexlife.animation.AnimationConsumer;
 import com.github.acebanenco.hexlife.layout.ShapeGridLayout;
-import javafx.animation.FillTransition;
+import com.github.acebanenco.hexlife.layout.ShapeGridLayout.GridLocation;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.BooleanPropertyBase;
-import javafx.scene.Node;
+import javafx.css.PseudoClass;
 import javafx.scene.control.Control;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Shape;
-import javafx.util.Duration;
 
-import java.util.Queue;
+import java.util.function.Supplier;
+
+import static javafx.scene.paint.Color.rgb;
 
 public class GridCell extends Control {
 
-    private final Color COLOR_ALIVE = Color.BLUE.brighter();
-    private final Color COLOR_DEAD = Color.WHITE;
+    private static final String DEFAULT_STYLE_CLASS = "grid-cell";
+    private static final PseudoClass PSEUDO_CLASS_ALIVE =
+            PseudoClass.getPseudoClass("alive");
 
-    private final ShapeGridLayout.GridLocation gridLocation;
-    private final Shape shape;
-
+    private final GridLocation gridLocation;
+    private Shape shape;
+    private final Supplier<Shape> shapeSupplier;
     private BooleanProperty aliveProperty;
-    private AnimationConsumer animationConsumer;
 
-    public GridCell(ShapeGridLayout.GridLocation gridLocation, Shape shape) {
+    public GridCell(GridLocation gridLocation,
+                    Supplier<Shape> shapeSupplier) {
         this.gridLocation = gridLocation;
-        this.shape = shape;
-        init();
+        this.shapeSupplier = shapeSupplier;
+        this.getStyleClass().add(DEFAULT_STYLE_CLASS);
     }
 
-    public void setAnimationConsumer(AnimationConsumer animationConsumer) {
-        this.animationConsumer = animationConsumer;
-    }
-
-    private void init() {
-        this.shape.setFill(COLOR_DEAD);
-        this.shape.setStroke(Color.gray(0.8));
-        this.shape.setStrokeWidth(0.5);
-    }
-
-    public ShapeGridLayout.GridLocation getGridLocation() {
+    public GridLocation getGridLocation() {
         return gridLocation;
     }
 
@@ -52,16 +43,63 @@ public class GridCell extends Control {
         aliveProperty().set(alive);
     }
 
-    public BooleanProperty aliveProperty() {
-        if ( aliveProperty == null ) {
-             aliveProperty = new BooleanPropertyBase() {
-                 @Override
-                 protected void invalidated() {
-                     boolean alive = this.get();
-                     updateShapeFill(alive);
-                 }
+    @Override
+    protected void layoutChildren() {
+        if ( shape == null ) {
+            shape = shapeSupplier.get();
+            shape.getStyleClass().add("shape");
+            shape.setStrokeWidth(0.1);
 
-                 @Override
+            getChildren().setAll(shape);
+        }
+        super.layoutChildren();
+    }
+
+    @Override
+    protected double computeMinWidth(double height) {
+        return super.computeMinWidth(height);
+    }
+
+    @Override
+    protected double computeMinHeight(double width) {
+        return super.computeMinHeight(width);
+    }
+
+    @Override
+    protected double computeMaxWidth(double height) {
+        return super.computeMaxWidth(height);
+    }
+
+    @Override
+    protected double computeMaxHeight(double width) {
+        return super.computeMaxHeight(width);
+    }
+
+    @Override
+    protected double computePrefWidth(double height) {
+        return super.computePrefWidth(height);
+    }
+
+    @Override
+    protected double computePrefHeight(double width) {
+        return super.computePrefHeight(width);
+    }
+
+    public BooleanProperty aliveProperty() {
+        if (aliveProperty == null) {
+            aliveProperty = new BooleanPropertyBase() {
+                @Override
+                protected void invalidated() {
+                    boolean alive = get();
+                    pseudoClassStateChanged(PSEUDO_CLASS_ALIVE, alive);
+                    if ( alive ) {
+                        shape.setFill(rgb(135, 206, 250));
+                    } else {
+                        shape.setFill(rgb(255, 250, 240));
+                    }
+                }
+
+                @Override
                 public Object getBean() {
                     return GridCell.this;
                 }
@@ -75,17 +113,8 @@ public class GridCell extends Control {
         return aliveProperty;
     }
 
-    private void updateShapeFill(boolean alive) {
-        Color newColor = alive ? COLOR_ALIVE : COLOR_DEAD;
-        if ( animationConsumer == null ) {
-            shape.setFill(newColor);
-        } else {
-            animationConsumer.addLocalFillTransition(this, newColor);
-        }
-    }
-
     @Override
-    public Shape getStyleableNode() {
-        return shape;
+    public String getUserAgentStylesheet() {
+        return getClass().getResource("/com/github/acebanenco/hexlife/control/GridCell.css").toExternalForm();
     }
 }

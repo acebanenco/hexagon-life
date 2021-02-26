@@ -3,27 +3,26 @@ package com.github.acebanenco.hexlife;
 import com.github.acebanenco.hexlife.shape.ShapeFactory;
 import com.github.acebanenco.hexlife.shape.TransformedShapeFactory;
 import javafx.geometry.Bounds;
-import javafx.geometry.Point2D;
 import javafx.scene.shape.Shape;
 
-public class ProportionallyScaledShapeFactory implements TransformedShapeFactory {
+public class ScaledShapeFactory implements TransformedShapeFactory {
     private final ShapeFactory shapeFactory;
-    private final double scale;
+    private final double scaleX;
+    private final double scaleY;
 
-    public ProportionallyScaledShapeFactory(double shapeWidth, ShapeFactory shapeFactory) {
+    public ScaledShapeFactory(ShapeFactory shapeFactory, double shapeWidth, double shapeHeight) {
         this.shapeFactory = shapeFactory;
         Shape shape = shapeFactory.createUnscaled();
         Bounds referenceBounds = shape.getBoundsInLocal();
-        scale = shapeWidth / referenceBounds.getWidth();
+        scaleX = shapeWidth / referenceBounds.getWidth();
+        scaleY = shapeHeight / referenceBounds.getHeight();
     }
 
     @Override
-    public Shape createShapeAt(Point2D point) {
+    public Shape createShape() {
         Shape shape = shapeFactory.createUnscaled();
-        shape.setScaleX(scale);
-        shape.setScaleY(scale);
-        shape.setTranslateX(point.getX());
-        shape.setTranslateY(point.getY());
+        shape.setScaleX(scaleX);
+        shape.setScaleY(scaleY);
         return shape;
     }
 

@@ -18,8 +18,6 @@ public interface ShapeGridLayout {
 
     Stream<GridLocation> locationsStream();
 
-    int indexOf(GridLocation location);
-
     interface CrossBorderStrategy {
         GridLocation crossBorderLocation(GridLocation location, GridSize size);
     }

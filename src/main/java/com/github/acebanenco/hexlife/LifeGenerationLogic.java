@@ -4,16 +4,12 @@ public class LifeGenerationLogic {
 
     private final double[] beBornWeights = {
             0.000, //0
-            0.000, //1
-            0.900, //2
-            0.000, //3
+            0.900, //1
+            0.000, //2
+            0.900, //3
             0.000, //4
             0.000, //5
-            0.000, //7
-            0.000, //8
-            0.000, //9
-            0.000, //10
-            0.000, //11
+            0.000, //6
     };
 
     private final double[] surviveWeights = {
@@ -21,14 +17,9 @@ public class LifeGenerationLogic {
             0.000, //1
             0.900, //2
             0.900, //3
-            0.900, //4
+            0.000, //4
             0.000, //5
             0.000, //6
-            0.000, //7
-            0.000, //8
-            0.000, //9
-            0.000, //10
-            0.000, //11
     };
 
     boolean shouldBeBorn(int aliveNeighbours) {

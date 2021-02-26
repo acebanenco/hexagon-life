@@ -10,30 +10,34 @@ import java.util.stream.Stream;
 
 public class HexagonGridLayout implements ShapeGridLayout {
 
-    private static final double SQRT_OF_THREE = Math.sqrt(3.0);
-    private final double shapeSize;
+    private final double shapeWidth;
+    private final double shapeHeight;
     private final Bounds parentBounds;
     private final CrossBorderStrategy crossBorderStrategy;
     private final Set<GridLocation> evenTranslations;
     private final Set<GridLocation> oddTranslations;
 
-    public HexagonGridLayout(double shapeSize, Bounds parentBounds, CrossBorderStrategy crossBorderStrategy) {
-        this.shapeSize = shapeSize;
+    public HexagonGridLayout(double shapeWidth,
+                             double shapeHeight,
+                             Bounds parentBounds,
+                             CrossBorderStrategy crossBorderStrategy) {
+        this.shapeWidth = shapeWidth;
+        this.shapeHeight = shapeHeight;
         this.parentBounds = parentBounds;
         this.crossBorderStrategy = crossBorderStrategy;
 
-        evenTranslations = getEvenTranslations();
-        oddTranslations = getOddTranslations();
+        this.evenTranslations = getEvenTranslations();
+        this.oddTranslations = getOddTranslations();
     }
 
     @Override
     public int getRowCount() {
-        return (int) (parentBounds.getHeight() / (shapeSize/SQRT_OF_THREE));
+        return (int) (parentBounds.getHeight() / (0.5 * shapeHeight));
     }
 
     @Override
     public int getColumnCount() {
-        return (int) (parentBounds.getWidth() / (1.5 * shapeSize));
+        return (int) (parentBounds.getWidth() / (1.5 * shapeWidth));
     }
 
     @Override
@@ -46,14 +50,14 @@ public class HexagonGridLayout implements ShapeGridLayout {
     private double getX(GridLocation locationOnGrid) {
         int column = locationOnGrid.getColumn();
         if (isEvenRow(locationOnGrid)) {
-            return 1.5 * (2 * column) * shapeSize/2 + parentBounds.getMinX();
+            return 1.5 * (2 * column) * shapeWidth/2 + parentBounds.getMinX();
         }
-        return 1.5 * (2 * column + 1) * shapeSize/2 + parentBounds.getMinX();
+        return 1.5 * (2 * column + 1) * shapeWidth/2 + parentBounds.getMinX();
     }
 
     private double getY(GridLocation locationOnGrid) {
         int row = locationOnGrid.getRow();
-        return row *SQRT_OF_THREE/2 * shapeSize/2 + parentBounds.getMinY();
+        return row * shapeHeight/2 + parentBounds.getMinY();
     }
 
     @Override
@@ -66,13 +70,6 @@ public class HexagonGridLayout implements ShapeGridLayout {
                     int row = index / columnCount;
                     return new GridLocation(column, row);
                 });
-    }
-
-    @Override
-    public int indexOf(GridLocation location) {
-        int column = location.getColumn();
-        int row = location.getRow();
-        return column + row * getColumnCount();
     }
 
     @Override
