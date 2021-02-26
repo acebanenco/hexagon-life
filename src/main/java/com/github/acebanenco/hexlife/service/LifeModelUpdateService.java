@@ -1,4 +1,4 @@
-package com.github.acebanenco.hexlife.animation;
+package com.github.acebanenco.hexlife.service;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.BooleanPropertyBase;
@@ -9,14 +9,14 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class AnimationConsumer {
+public class LifeModelUpdateService {
     private final AtomicLong resumeTimeMillis = new AtomicLong();
     private final Runnable advanceModelTask;
     private final ScheduledExecutorService executorService;
     private ScheduledFuture<?> advanceModelFuture;
     private BooleanProperty autoStartUpdatesProperty;
 
-    public AnimationConsumer(Runnable advanceModelTask) {
+    public LifeModelUpdateService(Runnable advanceModelTask) {
         this.advanceModelTask = advanceModelTask;
 
         executorService = Executors.newScheduledThreadPool(1, r1 -> {
@@ -42,7 +42,7 @@ public class AnimationConsumer {
 
                 @Override
                 public Object getBean() {
-                    return AnimationConsumer.this;
+                    return LifeModelUpdateService.this;
                 }
 
                 @Override

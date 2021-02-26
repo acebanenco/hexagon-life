@@ -1,4 +1,4 @@
-package com.github.acebanenco.hexlife;
+package com.github.acebanenco.hexlife.control;
 
 import com.github.acebanenco.hexlife.shape.ShapeFactory;
 import com.github.acebanenco.hexlife.shape.TransformedShapeFactory;

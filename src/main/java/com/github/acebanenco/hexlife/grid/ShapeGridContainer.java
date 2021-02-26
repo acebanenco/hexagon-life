@@ -1,5 +1,6 @@
-package com.github.acebanenco.hexlife.control;
+package com.github.acebanenco.hexlife.grid;
 
+import com.github.acebanenco.hexlife.control.GridCell;
 import com.github.acebanenco.hexlife.layout.ShapeGridLayout;
 import com.github.acebanenco.hexlife.layout.ShapeGridLayout.GridLocation;
 import javafx.geometry.Bounds;
@@ -8,6 +9,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 
+import java.util.DoubleSummaryStatistics;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -31,38 +33,39 @@ public class ShapeGridContainer extends Pane {
 
     @Override
     protected double computePrefWidth(double height) {
-        List<Bounds> boundsList = getChildren().stream()
-                .map(Node::getLayoutBounds)
-                .collect(Collectors.toList());
-        double min = boundsList.stream()
-                .mapToDouble(Bounds::getMinX)
-                .min()
-                .orElse(0);
-        double max = boundsList.stream()
-                .mapToDouble(Bounds::getMaxX)
-                .max()
-                .orElse(0);
-        double w = max - min;
-
+        DoubleSummaryStatistics xStat = getChildren().stream()
+                .filter(c -> c instanceof GridCell)
+                .map(c -> (GridCell) c)
+                .map(GridCell::getGridLocation)
+                .map(gridLayout::getPoint)
+                .map(Point2D::getX)
+                .collect(DoubleSummaryStatistics::new,
+                        DoubleSummaryStatistics::accept,
+                        DoubleSummaryStatistics::combine);
         Insets insets = getInsets();
-        return insets.getLeft() + w + insets.getRight();
+        double width = xStat.getMax() - xStat.getMin();
+        double left = insets.getLeft();
+        double right = insets.getRight();
+        return left + width + right;
     }
 
     @Override
     protected double computePrefHeight(double width) {
-        List<Bounds> boundsList = getChildren().stream()
-                .map(Node::getLayoutBounds)
-                .collect(Collectors.toList());
-        double min = boundsList.stream()
-                .mapToDouble(Bounds::getMinY)
-                .min()
-                .orElse(0);
-        double max = boundsList.stream()
-                .mapToDouble(Bounds::getMaxY)
-                .max()
-                .orElse(0);
-        double h = max - min;
-        return getInsets().getTop() + h + getInsets().getBottom();
+        DoubleSummaryStatistics yStat = getChildren().stream()
+                .filter(c -> c instanceof GridCell)
+                .map(c -> (GridCell) c)
+                .map(GridCell::getGridLocation)
+                .map(gridLayout::getPoint)
+                .map(Point2D::getY)
+                .collect(DoubleSummaryStatistics::new,
+                        DoubleSummaryStatistics::accept,
+                        DoubleSummaryStatistics::combine);
+
+        double height = yStat.getMax() - yStat.getMin();
+        Insets insets = getInsets();
+        double top = insets.getTop();
+        double bottom = insets.getBottom();
+        return top + height + bottom;
     }
 
     @Override

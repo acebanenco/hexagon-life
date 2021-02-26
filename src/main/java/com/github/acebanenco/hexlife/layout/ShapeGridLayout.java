@@ -58,6 +58,10 @@ public interface ShapeGridLayout {
         public int hashCode() {
             return Objects.hash(column, row);
         }
+
+        public GridLocation minus(GridLocation location) {
+            return new GridLocation(column - location.column, row - location.row);
+        }
     }
 
     class GridSize {
